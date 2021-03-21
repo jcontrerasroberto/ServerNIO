@@ -1,15 +1,44 @@
+import javax.swing.*;
+import java.awt.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.Random;
 
 public class ServerSopaLetras {
 
-    private final int port = 1234;
-    private DataOutputStream dos;
-    private DataInputStream dis;
+    private final int port = 9876;
+    private int rows = 16, columns = 16;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
-    private String[] categories = {"Musica", "Animales", "Videojuegos", "Peliculas"};
+    private String[][] matrix = new String[rows][columns];
+    private String category;
+    private ArrayList<String> actualWords = new ArrayList<String>();
+    private String[] categories = {"musica", "animales", "videojuegos", "peliculas"};
+    private String[] musica = {
+            "microfono",
+            "cantante",
+            "disco",
+            "rock",
+            "tango",
+            "balada",
+            "cumbia",
+            "salsa",
+            "pop",
+            "electronica",
+            "baile",
+            "notas",
+            "guitarra",
+            "piano",
+            "tambor",
+            "bateria",
+            "musico",
+            "grupo",
+            "banda",
+            "solista"
+    };
 
     public ServerSopaLetras(){
 
@@ -24,10 +53,17 @@ public class ServerSopaLetras {
             while (true){
                 Socket socketcon = ss.accept();
                 System.out.println("Cliente conectado desde " + socketcon.getInetAddress() + " : " + socketcon.getPort());
-                dis = new DataInputStream(socketcon.getInputStream());
-                dos = new DataOutputStream(socketcon.getOutputStream());
-                ois = new ObjectInputStream(socketcon.getInputStream());
                 oos = new ObjectOutputStream(socketcon.getOutputStream());
+                oos.flush();
+                ois = new ObjectInputStream(socketcon.getInputStream());
+
+
+                while(true){
+                    String action = ois.readUTF();
+                    if(action.equals("getCategories")) sendCategories();
+                    if(action.matches("category:\\w+")) changeCategory(action);
+                }
+
             }
 
         } catch (IOException e) {
@@ -36,9 +72,170 @@ public class ServerSopaLetras {
 
     }
 
+    public void generateTablero() throws IOException {
+        int limit = 15;
+        inicializarMatrix();
+        Random rand = new Random();
+        String[] original_words = null;
+        if(category.equals("musica")) original_words = musica;
+        actualWords.clear();
+        while(actualWords.size()<limit){
+            int seleccionada = rand.nextInt(limit);
+            if(! actualWords.contains(original_words[seleccionada])) actualWords.add(original_words[seleccionada]);
+        }
+        System.out.println(actualWords);
+
+        for(String word : actualWords){
+            posicionarPalabra(word);
+        }
+
+        fillEmptyCas();
+    }
+
+    public void fillEmptyCas(){
+        Random rand = new Random();
+
+        for(int x=0; x<rows; x++){
+            for (int y=0; y<columns; y++){
+                if(matrix[x][y].equals("-")){
+                    int asciiVal = rand.nextInt(26) + 65;
+                    char letter = (char) asciiVal;
+                    matrix[x][y] = ""+letter;
+                }
+            }
+        }
+
+    }
+
+    public void inicializarMatrix(){
+        for(int x=0; x<rows; x++){
+            for (int y=0; y<columns; y++){
+                matrix[x][y] = "-";
+            }
+        }
+    }
+
+    public void posicionarPalabra(String word){
+        int limite = 16;
+        Random rand = new Random();
+        int filapos, colpos;
+        boolean stop = false;
+        while(true){
+            filapos = rand.nextInt(limite);
+            colpos = rand.nextInt(limite);
+
+            // Tratar de posicionar palabra horizontalmente hacia la derecha
+
+            if((colpos + word.length() - 1) < limite) {
+                if(checkIfFit(word, filapos, colpos, 0, 1)){
+                    insertWord(word, filapos, colpos, 0, 1);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra diagonalmente cuarto cuadrante
+
+
+            if((colpos + word.length() - 1) < limite  && (filapos + word.length() - 1) < limite) {
+                if(checkIfFit(word, filapos, colpos, 1, 1)){
+                    insertWord(word, filapos, colpos, 1, 1);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra verticalemte descendentemente
+
+            if((filapos + word.length() - 1) < limite ) {
+                if(checkIfFit(word, filapos, colpos, 1, 0)){
+                    insertWord(word, filapos, colpos, 1, 0);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra diagonalmente tercer cuadrante
+
+            if((colpos - word.length() + 1) >= 0  && (filapos + word.length() - 1) < limite) {
+                if(checkIfFit(word, filapos, colpos, 1, -1)){
+                    insertWord(word, filapos, colpos, 1, -1);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra horizontalmente hacia la izquierda
+
+            if((colpos - word.length() + 1) >= limite) {
+                if(checkIfFit(word, filapos, colpos, 0, -1)){
+                    insertWord(word, filapos, colpos, 0, -1);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra diagonalmente segundo cuadrante
+
+            if((colpos - word.length() + 1) >= 0  && (filapos - word.length() + 1) >= 0) {
+                if(checkIfFit(word, filapos, colpos, -1, -1)){
+                    insertWord(word, filapos, colpos, -1, -1);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra verticalemte ascendentemente
+
+            if((filapos - word.length() + 1) >= 0 ) {
+                if(checkIfFit(word, filapos, colpos, -1, 0)){
+                    insertWord(word, filapos, colpos, -1, 0);
+                    break;
+                }
+            }
+
+            // Tratar de posicionar palabra diagonalmente primer cuadrante
+
+            if((colpos + word.length() - 1) < limite  && (filapos - word.length() + 1) >= 0) {
+                if(checkIfFit(word, filapos, colpos, -1, 1)){
+                    insertWord(word, filapos, colpos, -1, 1);
+                    break;
+                }
+            }
+
+        }
+
+    }
+
+    public boolean checkIfFit(String word, int filapos, int colpos, int filaincrement, int colincrement){
+
+        for(int filastep = 0, colstep = 0, times = 0; times < word.length(); times++, filastep+=filaincrement, colstep+=colincrement){
+            String valueAt = matrix[filapos+filastep][colpos+colstep];
+            if(!(valueAt.equals(""+word.charAt(times)) || valueAt.equals("-"))) return false;
+        }
+
+        return true;
+    }
+
+    public void insertWord(String word, int filapos, int colpos, int filaincrement, int colincrement){
+
+        for(int filastep = 0, colstep = 0, times = 0; times < word.length(); times++, filastep+=filaincrement, colstep+=colincrement){
+            matrix[filapos+filastep][colpos+colstep] = String.valueOf(word.charAt(times)).toUpperCase(Locale.ROOT);
+        }
+    }
+
+    public void changeCategory(String action) throws IOException {
+        String[] split = action.split(":");
+        category = split[1];
+        generateTablero();
+        sendObject(matrix);
+    }
+
+    public void sendCategories() throws IOException {
+        sendObject(categories);
+    }
+
+    public void sendObject(Object toSend) throws IOException {
+        oos.writeObject(toSend);
+        oos.flush();
+    }
+
     public static void main(String[] args) {
         new ServerSopaLetras();
     }
-
 
 }
