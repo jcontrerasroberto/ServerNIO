@@ -113,6 +113,8 @@ public class ServerSopaLetras {
             posicionarPalabra(word);
         }
 
+        printMatrix(matrix);
+
         fillEmptyCas();
     }
 
