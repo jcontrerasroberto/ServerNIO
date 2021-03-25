@@ -85,7 +85,12 @@ public class ServerSopaLetras {
                     String action = ois.readUTF();
                     if(action.equals("getCategories")) sendCategories();
                     if(action.matches("category:\\w+")) changeCategory(action);
+                    if(action.equals("exit")) break;
                 }
+
+                oos.close();
+                ois.close();
+                socketcon.close();
 
             }
 
