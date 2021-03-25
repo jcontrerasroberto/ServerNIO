@@ -40,6 +40,29 @@ public class ServerSopaLetras {
             "solista"
     };
 
+    private String[] animales = {
+            "oso",
+            "panda",
+            "pez",
+            "marisco",
+            "gato",
+            "perro",
+            "leon",
+            "lobo",
+            "mariposa",
+            "tigre",
+            "manada",
+            "buho",
+            "dinosaurio",
+            "elefante",
+            "rinoceronte",
+            "cocodrilo",
+            "lagartija",
+            "tortuga",
+            "sapo",
+            "serpiente"
+    };
+
     public ServerSopaLetras(){
 
         ServerSocket ss = null;
@@ -78,6 +101,7 @@ public class ServerSopaLetras {
         Random rand = new Random();
         String[] original_words = null;
         if(category.equals("musica")) original_words = musica;
+        if(category.equals("animales")) original_words = animales;
         actualWords.clear();
         while(actualWords.size()<limit){
             int seleccionada = rand.nextInt(limit);
@@ -222,12 +246,47 @@ public class ServerSopaLetras {
         String[] split = action.split(":");
         category = split[1];
         generateTablero();
-        sendObject(matrix);
+        AlphabetSoup temp = new AlphabetSoup();
+        temp.setCategory(category);
+        temp.setActualWords((ArrayList<String>) actualWords.clone());
+        temp.setMatrix(matrix.clone());
+        temp.setMatrix(temp.getMatrix().clone());
+        System.out.println("Enviando:");
+        System.out.println(temp.getActualWords());
+        printMatrix(temp.getMatrix());
+
+        String matEnv = convertToString(matrix.clone());
+        System.out.println(matEnv);
+        sendObject(temp);
+        sendObject(matrix.clone());
+
+        oos.writeUTF(matEnv);
+        oos.flush();
+    }
+
+    private String convertToString(String[][] mat) {
+        String res = "";
+        for(int x=0; x<rows; x++){
+            for (int y=0; y<columns; y++){
+                res = res + mat[x][y];
+            }
+        }
+        return res;
+    }
+
+    public void printMatrix(String[][] rec){
+        for(int x=0; x<rows; x++){
+            for (int y=0; y<columns; y++){
+                System.out.print(rec[x][y] + "\t");
+            }
+            System.out.println();
+        }
     }
 
     public void sendCategories() throws IOException {
         sendObject(categories);
     }
+
 
     public void sendObject(Object toSend) throws IOException {
         oos.writeObject(toSend);
