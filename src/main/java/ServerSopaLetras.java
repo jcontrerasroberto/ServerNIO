@@ -16,7 +16,7 @@ public class ServerSopaLetras {
     private String[][] matrix = new String[rows][columns];
     private String category;
     private ArrayList<String> actualWords = new ArrayList<String>();
-    private String[] categories = {"musica", "animales", "videojuegos", "peliculas"};
+    private String[] categories = {"musica", "animales", "paises", "peliculas"};
     private String[] musica = {
             "microfono",
             "cantante",
@@ -44,7 +44,7 @@ public class ServerSopaLetras {
             "oso",
             "panda",
             "pez",
-            "marisco",
+            "camaron",
             "gato",
             "perro",
             "leon",
@@ -61,6 +61,53 @@ public class ServerSopaLetras {
             "tortuga",
             "sapo",
             "serpiente"
+    };
+
+    private String[] paises = {
+            "argentina",
+            "brasil",
+            "mexico",
+            "venezuela",
+            "colombia",
+            "chile",
+            "peru",
+            "ecuador",
+            "uruguay",
+            "bolivia",
+            "paraguay",
+            "panama",
+            "canada",
+            "dubai",
+            "italia",
+            "francia",
+            "alemania",
+            "suiza",
+            "portugal",
+            "alaska",
+            "china"
+    };
+
+    private String[] peliculas = {
+
+            "lallorona",
+            "cars",
+            "shrek",
+            "roma",
+            "godzilla",
+            "anaconda",
+            "anabelle",
+            "kingkong",
+            "lamonja",
+            "pinocho",
+            "tomyjerry",
+            "soul",
+            "titere",
+            "exorcista",
+            "elpadrino",
+            "tiburon",
+            "ironman",
+            "parasitos",
+            "zombi"
     };
 
     public ServerSopaLetras(){
@@ -107,6 +154,8 @@ public class ServerSopaLetras {
         String[] original_words = null;
         if(category.equals("musica")) original_words = musica;
         if(category.equals("animales")) original_words = animales;
+        if(category.equals("paises")) original_words = paises;
+        if(category.equals("peliculas")) original_words = peliculas;
         actualWords.clear();
         while(actualWords.size()<limit){
             int seleccionada = rand.nextInt(limit);
@@ -236,7 +285,7 @@ public class ServerSopaLetras {
 
         for(int filastep = 0, colstep = 0, times = 0; times < word.length(); times++, filastep+=filaincrement, colstep+=colincrement){
             String valueAt = matrix[filapos+filastep][colpos+colstep];
-            if(!(valueAt.equals(""+word.charAt(times)) || valueAt.equals("-"))) return false;
+            if(!(valueAt.equals(String.valueOf(word.charAt(times)).toUpperCase(Locale.ROOT)) || valueAt.equals("-"))) return false;
         }
 
         return true;
