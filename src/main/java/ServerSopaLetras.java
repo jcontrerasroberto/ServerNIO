@@ -1,9 +1,17 @@
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Random;
 
@@ -11,8 +19,6 @@ public class ServerSopaLetras {
 
     private final int port = 9876;
     private int rows = 16, columns = 16;
-    private ObjectInputStream ois;
-    private ObjectOutputStream oos;
     private String[][] matrix = new String[rows][columns];
     private String category;
     private ArrayList<String> actualWords = new ArrayList<String>();
@@ -116,30 +122,45 @@ public class ServerSopaLetras {
         System.out.println("Iniciando servidor");
 
         try {
-            ss = new ServerSocket(port);
-            ss.setReuseAddress(true);
-            System.out.println("Server iniciado, esperando por clientes");
-
-            while (true){
-                Socket socketcon = ss.accept();
-                System.out.println("Cliente conectado desde " + socketcon.getInetAddress() + " : " + socketcon.getPort());
-                oos = new ObjectOutputStream(socketcon.getOutputStream());
-                oos.flush();
-                ois = new ObjectInputStream(socketcon.getInputStream());
-
-
-                while(true){
-                    String action = ois.readUTF();
-                    if(action.equals("getCategories")) sendCategories();
-                    if(action.matches("category:\\w+")) changeCategory(action);
-                    if(action.equals("exit")) break;
+            ServerSocketChannel s = ServerSocketChannel.open();
+            s.configureBlocking(false);
+            s.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+            InetSocketAddress local = new InetSocketAddress("127.0.0.1",port);
+            s.bind(local);
+            Selector sel = Selector.open();
+            s.register(sel, SelectionKey.OP_ACCEPT);
+            while(true){
+                int x = sel.select();
+                if (x==0) continue;
+                Iterator<SelectionKey> iterator = sel.selectedKeys().iterator();
+                while (iterator.hasNext()){
+                    SelectionKey key = iterator.next();
+                    iterator.remove();
+                    if (key.isAcceptable()){
+                        SocketChannel channel = s.accept();
+                        System.out.println("Cliente conectado desde: " + channel.socket().getInetAddress()  + ":" + channel.socket().getPort() );
+                        channel.configureBlocking(false);
+                        channel.register(sel, SelectionKey.OP_READ|SelectionKey.OP_WRITE);
+                        continue;
+                    }
+                    if (key.isReadable()){
+                        SocketChannel channel = (SocketChannel) key.channel();
+                        ByteBuffer reader = ByteBuffer.allocate(2000);
+                        reader.clear();
+                        int n = channel.read(reader);
+                        reader.flip();
+                        String action = new String(reader.array(), 0, reader.limit());
+                        if(action.equals("getCategories")){
+                            System.out.println(action);
+                            sendCategories(channel);
+                        }
+                        if(action.matches("category:\\w+")) changeCategory(action, channel);
+                        key.interestOps(SelectionKey.OP_READ);
+                        continue;
+                    }
                 }
-
-                oos.close();
-                ois.close();
-                socketcon.close();
-
             }
+
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -298,7 +319,7 @@ public class ServerSopaLetras {
         }
     }
 
-    public void changeCategory(String action) throws IOException {
+    public void changeCategory(String action, SocketChannel channel) throws IOException {
         String[] split = action.split(":");
         category = split[1];
         generateTablero();
@@ -310,14 +331,17 @@ public class ServerSopaLetras {
         System.out.println("Enviando:");
         System.out.println(temp.getActualWords());
         printMatrix(temp.getMatrix());
-
         String matEnv = convertToString(matrix.clone());
         System.out.println(matEnv);
-        sendObject(temp);
-        sendObject(matrix.clone());
+        temp.setLinealMat(matEnv);
 
-        oos.writeUTF(matEnv);
-        oos.flush();
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        objectOutputStream.writeObject(temp);
+        objectOutputStream.flush();
+        byte[] bytesCat = byteArrayOutputStream.toByteArray();
+        ByteBuffer writer = ByteBuffer.wrap(bytesCat);
+        channel.write(writer);
     }
 
     private String convertToString(String[][] mat) {
@@ -339,15 +363,16 @@ public class ServerSopaLetras {
         }
     }
 
-    public void sendCategories() throws IOException {
-        sendObject(categories);
+    public void sendCategories(SocketChannel channel) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        objectOutputStream.writeObject(categories);
+        objectOutputStream.flush();
+        byte[] bytesCat = byteArrayOutputStream.toByteArray();
+        ByteBuffer writer = ByteBuffer.wrap(bytesCat);
+        channel.write(writer);
     }
 
-
-    public void sendObject(Object toSend) throws IOException {
-        oos.writeObject(toSend);
-        oos.flush();
-    }
 
     public static void main(String[] args) {
         new ServerSopaLetras();
